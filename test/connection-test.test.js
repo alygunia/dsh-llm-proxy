@@ -149,6 +149,32 @@ test('findTestTarget resolves a quoted flow-style ref value', () => {
   }
 })
 
+test('findTestTarget resolves a ref whose value contains a colon (yaml parse, not line scan)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-llm-proxy-cred-'))
+  try {
+    // A value with an embedded `:` — a naive line scan that splits on the
+    // first colon would truncate it; the real YAML parser returns the whole
+    // value. This pins the test to the `yaml` code path.
+    writeFileSync(join(dir, '.credentials.yaml'),
+      'version: 1\nrefs:\n  COLON_KEY: "sk-abc:def-123"\n')
+    const seam = makeSeam({
+      documentPath: join(dir, 'settings.yaml'),
+      providers: {
+        'b-ai': {
+          apiKeyEnv: 'COLON_KEY',
+          baseURL: 'https://api.b.ai/v1',
+          models: [{ id: 'deepseek-v4-flash-vision-exp' }],
+        },
+      },
+    })
+    const target = findTestTarget(seam, BAI_KEY, {})
+    assert.equal(target.error, undefined)
+    assert.equal(target.apiKey, 'sk-abc:def-123')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('findTestTarget resolves apiKeyEnv from the environment', () => {
   const seam = makeSeam({
     providers: {
