@@ -1,4 +1,4 @@
-# @superfish058/dsh-llm-proxy v1.5.0 — bundle patch: inserts the LLM proxy-routing plugin row (deployment-global).
+# @superfish058/dsh-llm-proxy v1.5.1 — bundle patch: inserts the LLM proxy-routing plugin row (deployment-global).
 #
 # v1.0.0 redesign (model-level intent):
 #   proxyHost      proxy hostname/IP (does not have to be this machine; default 127.0.0.1)
@@ -20,16 +20,6 @@
 # older harnesses fall back to the bundled RoutingDispatcher.
 #
 # Edit values below, or use the 设置 → 插件 → 模型代理 page (which also lists the selectable models).
-- insert:
-    - id: llm-proxy
-      name: '@superfish058/dsh-llm-proxy'
-      config:
-        proxyHost: '127.0.0.1'
-        proxyPort: 7897
-        # proxiedModels:
-        #   - 'deepseek-v4-flash/deepseek-v4-flash'   # b.ai provider
-        retries: 3
-        retryIntervalMs: 1000
 - insert:
     - id: llm-proxy
       name: '@superfish058/dsh-llm-proxy'

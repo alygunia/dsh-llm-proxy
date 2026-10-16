@@ -296,3 +296,29 @@ test('连接测试 falls back to the selection when the engine cannot answer', a
   })
   assert.equal(outcome.viaProxy, false, 'selection says direct, and the failing engine must not break the probe')
 })
+
+test('a host shared by two provider routes stays proxied when either route is ticked', () => {
+  // Reported from a live profile: `opencode-go` (baseURL from the pi-ai
+  // catalog) and `opencode-go-user` (baseURL in its own profile) both resolve
+  // to `opencode.ai`. Partitioning per provider row put that host in BOTH the
+  // proxied and the bypass list, and the official matcher lets the bypass list
+  // win — so the ticked model was published as `no_proxy` and went direct.
+  const settings = {
+    describe: () => [{
+      ns: 'llm-pi-ai',
+      value: {
+        providers: {
+          'opencode-go': { apiKeyEnv: 'K', baseURL: 'https://opencode.ai/zen/go', models: [{ id: 'a' }] },
+          'opencode-go-user': { apiKeyEnv: 'K', baseURL: 'https://opencode.ai/zen/go/v1', models: [{ id: 'b' }] },
+        },
+      },
+    }],
+  }
+  const split = resolveProxySelection(settings, ['opencode-go/a'], undefined)
+  assert.deepEqual(split.proxied, ['opencode.ai'])
+  assert.deepEqual(split.direct, [], 'a selected route must never also be bypassed')
+
+  const other = resolveProxySelection(settings, ['opencode-go-user/b'], undefined)
+  assert.deepEqual(other.proxied, ['opencode.ai'])
+  assert.deepEqual(other.direct, [], 'either route on the host is enough to proxy it')
+})

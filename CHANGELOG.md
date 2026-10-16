@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.1 (2026-10-15)
+
+**请从 v1.5.0 升级**：v1.5.0 的 bundle patch 里同一个 `insert` 块被写了两遍，安装后 profile 会出现两条同名 `llm-proxy` 行、插件被挂载两次（第二次注册同样的 `/api/dsh-llm-proxy/settings/*` exact 路由时会被 webserver 以 `duplicate exact route` 拒绝）。v1.4.0 无此问题。
+
+- **修复「勾了走代理，实际走直连」（重要）**：`resolveProxySelection` 原来按 **provider 行** 分桶，于是当两条 provider 路由解析到**同一个主机**时，该主机同时进入 `proxied` 与 `bypass` 两个列表——而官方匹配器里 bypass 优先，勾选的模型因此被写进 `no_proxy` 静默直连。实测触发场景：`opencode-go`（baseURL 来自 pi-ai 目录 `https://opencode.ai/zen/go`）与 `opencode-go-user`（profile 里写 `https://opencode.ai/zen/go/v1`）共用 `opencode.ai`，只勾选前者时该模型实际直连。现改为**按主机**划分：`direct = 全部主机 − proxied`。真机复验：`no_proxy` 移出 `opencode.ai` 后，被勾选模型由 `400 / viaProxy=false` 变为 `200 / viaProxy=true`。
+- **修复「测试连接」报 `未找到该模型`**：`findTestTarget` 仍只在 provider「没写 `models`」时才查 pi-ai 目录，因此像 `zai-coding-cn` 这种**声明了 models 但把 baseURL 留给目录**的路由，卡片列得出、路由也认得，测试却说找不到。现与 `scanProviderHosts` / `listModels` 使用同一套目录兜底（v1.5.0 只修了前两处，漏了这一处）。
+- **修复「测试连接」丢 provider 自定义 headers**：探测请求原来只发 `content-type` + `Bearer`，把 provider profile 里的 `headers` 全丢了，导致需要会话/租户头的路由（opencode 返回 `400 MissingSessionID`）在插件里必然失败、而真实适配器请求正常。现在按官方适配器的顺序先合入 profile `headers`，再按协议加鉴权。
+- **顺带：`anthropic-messages` 协议改用 `x-api-key` + `anthropic-version`**（原先一律 `Bearer`）。当前 profile 没有这类 provider，属未触发的既有偏差。
+- **设置页：修正 `plugins.item` 的 view 契约**。卡片原先忽略 owner props，在「官方」列表的一行说明位与详情页各渲染了一遍完整表单（列表页 0 个表单 → 修复前会渲染整个表单）；现在 `view === 'summary'` 只返回一行说明，`view === 'page'` 才渲染表单，与官方 `dsh-client-ui-settings-shell` 同构。实测：列表页 0 个表单、详情页 1 个。
+- **设置页：补回卡片底板**。Plugins 页给 `plugins.item` 的 `<section data-plugin-config>` 完全透明且零内边距（官方卡片靠 `ui-primitives` 的 `SettingsForm` 自带表面），因此页面视图仍需自己提供边框/圆角/底色；同时删掉已死的折叠头部 CSS 与两个不再使用的文案键（client bundle 42.57 kB → 41.43 kB）。
+- 依赖：`@deepseek-ai/schemastery` 保持 `^3.18.4`（`Schema#volatile` 从该版本起才有）。测试套件从 73 例增至 **77** 例（新增：共用主机的路由划分、目录兜底的测试目标解析、profile headers 转发、anthropic 鉴权头），全绿。
+
 ## v1.5.0 (2026-09-28)
 
 - **适配 dsh 0.1.7 的设置模型（重要，修复「renderer boot failed」）**。0.1.7 把客户端设置服务从 `settingsScope` 改名为 `configForms`，并按 **Loader entry id**（本插件即 `llm-proxy`）寻址设置文档；旧代码硬 `inject` 已不存在的服务名，cordis fiber 永远停在 pending，启动审计因此只能报「The client Loader did not provide an error message. RendererStartupFailure」。现在客户端改为 `ctx.inject(['configForms'], …)` 动态等待该服务——服务缺失时插件照常启动、只是不显示设置页，未来再改名也不会再把启动拖垮。

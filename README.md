@@ -4,7 +4,9 @@
 
 DSH 模型代理插件：给 LLM 请求按「目标域名」分流——选中的模型走代理，其余直连。官方出站代理包（dsh ≥ 0.1.3）在时装官方引擎复用其传输层，旧 harness 用自带 dispatcher；重试统一交给官方 `dsh-llm-retry`。
 
-> 版本要求：**v1.5.0 面向 dsh ≥ 0.1.7**（设置文档由插件自己的 `Config` 承载，客户端用 `configForms` + Plugins 页的 `plugins.item` 槽）。dsh 0.1.6 及更早请继续用 [v1.4.0](https://www.npmjs.com/package/@superfish058/dsh-llm-proxy/v/1.4.0)——路由与重试行为相同，只是设置页在老 harness 上可用。
+> 版本要求：**v1.5.1 面向 dsh ≥ 0.1.7**（设置文档由插件自己的 `Config` 承载，客户端用 `configForms` + Plugins 页的 `plugins.item` 槽）。dsh 0.1.6 及更早请继续用 [v1.4.0](https://www.npmjs.com/package/@superfish058/dsh-llm-proxy/v/1.4.0)——路由与重试行为相同，只是设置页在老 harness 上可用。
+>
+> **请勿使用 v1.5.0**：它的 bundle patch 里同一个 `insert` 块被写了两遍，装完插件会被挂载两次（第二次注册同样的设置桥路由时被 webserver 拒绝）。详见 CHANGELOG。
 
 ## 它是干嘛的
 
@@ -12,7 +14,6 @@ DSH 模型代理插件：给 LLM 请求按「目标域名」分流——选中�
 - **失败自动重试（官方引擎）**：重试由官方 `dsh-llm-retry` 执行——对断连（ECONNRESET 等）、429 限流、5xx 按 provider 自己的 `retryPolicy` 重放请求（默认 5 次、500ms→10s 指数退避 + 抖动，并遵循 `Retry-After`）。卡片上的 `retries`/`retryIntervalMs`（默认 3 次 / 1s 固定间隔）镜像进**被勾选** provider 的该策略，取消勾选还原官方默认；插件自身不再在传输层重试（v1.4.0 起）。
 - **模型列表与官方一致**：只配了 `apiKeyEnv`、没写 `models` 的 provider（如 `xiaomi`），其模型从 pi-ai 内置目录（`@earendil-works/pi-ai`）回退补齐；`llm-deepseek` 命名空间即使保持默认空文档（`llm-deepseek: {}`）也回退官方内置目录（`https://api.deepseek.com` + `DEEPSEEK_API_KEY`），`deepseek-official/*` 模型开箱可用。勾选列表与 DSH 官方模型选择器完全同步。
 - **retryPolicy 镜像**：卡片上的 `retries`/`retryIntervalMs` 会镜像进被勾选 provider 的官方 `retryPolicy`（既是设置页 `(retry/maximum)` 提示的来源，也是真正的重试参数），取消勾选自动还原官方默认值——一套配置驱动官方重试。
-- **多模态模型镜像**：DSH 官方模型声明里，部分**支持图像识别**的模型（如 `deepseek-v4-flash-vision-exp`）没有可供用户勾选「图像输入」的配置入口，选中后发图会被 DSH 以 `UNSUPPORTED_CONTENT` 拒绝。在设置卡「多模态模型」区勾选这些模型后，插件把 `image` 写进所属 provider 的模型声明（pi-ai 的 `models[].input` / 目录型 `modelOverrides[].input`，官方 DeepSeek 的 `models[].inputModalities`），使 DSH 允许对该模型发图；取消勾选自动还原官方默认。注意：该功能只对真正支持图像输入的模型（如 vision 模型）有意义，纯文本模型（如 `deepseek-v4-flash`）勾选后 DSH 虽放行，实际请求仍会因模型不支持图像而报错。
 - **测试连接**：走代理的模型列表每行新增「测试连接」按钮，探测请求走当前生效的全局 dispatcher（即真实 LLM 请求的路径），返回 HTTP 状态 / 耗时 / **引擎给出的真实路由**（经代理或直连）；失败时直接显示提供方返回的错误 body（脱敏、截断），如 B.AI 的 `max_tokens` 限制一眼可见。注意：测试走**已保存**的配置——改了勾选后请先点「保存」再测试。
 - **保存即生效，无需重启**：设置写入本插件的配置项（dsh 0.1.7 的 Loader entry `llm-proxy`，即 `cordis.patch.yml` 里这一行）后运行时整体替换 dispatcher，不碰供应商自己的配置。冷启动时若 provider 命名空间（`llm-pi-ai`/`llm-deepseek`）尚未注册，插件会带退避重试直到可解析代理域名，不再需要手动"恢复默认再保存"。
 - **图片输入不再由本插件代管**：dsh 0.1.7 起模型图片输入（`input` / `inputModalities`）由官方模型设置页与官方 provider 配置直接管理，v1.4.0 的「多模态模型镜像」因此在 v1.5.0 移除——需要给某模型开图片输入时，请在官方模型设置处配置。
@@ -54,6 +55,15 @@ dsh plugin --profile web add C:/path/to/dsh-llm-proxy
 
 若提示 build 授权，把 `@superfish058/dsh-llm-proxy` 加进 profile 的 `pnpm-workspace.yaml` → `onlyBuiltDependencies`。装完重启 `dsh web`（托盘退出 → 启动）。
 
+> **本地目录 / `link:` 安装的额外一步（重要）**：DSH 对本地目录用 `link:`，pnpm 只建符号链接、**不会**给被链接的目录装依赖。此时插件条目会报 `failed to import`，而这句话本身不含错误详情（真实原因是 `Cannot find package '@deepseek-ai/schemastery' imported from <插件目录>/lib/index.js`）。解决办法是在**插件目录里自己装一次依赖**：
+>
+> ```sh
+> cd C:/path/to/dsh-llm-proxy
+> npm install          # 或 pnpm install
+> ```
+>
+> 从 npm 安装没有这个问题（依赖会正常落进 profile）。
+
 ## 配置
 
 | 字段 | 默认 | 说明 |
@@ -74,6 +84,10 @@ dsh plugin --profile web add C:/path/to/dsh-llm-proxy
 - ✗ 连接失败：直接显示脱敏后的提供方错误原因（认证失败、限流、`max_tokens` 限制等），一眼定位问题
 
 > 注意：测试走的是**已保存**的配置——改了代理勾选/代理地址后，先点「保存」再测试；测试只验证一次非流式探测，流式/长对话仍建议用真实会话确认。
+>
+> `deepseek-official/*` 的探测打的是 `<baseURL>/chat/completions`（OpenAI 兼容端点），而官方适配器走的是 `/anthropic`（Messages 协议）：测试能证明 key 与出站连通，但不等于验证了适配器那条路径。provider profile 里的自定义 `headers` 会被转发（v1.5.1 起），与适配器一致。
+>
+> 改动**插件源码**（`lib/*.js`）后必须重启 `dsh web`：`dsh-base` 给 hmr 行配的是 `root: []`，默认只监听 profile 配置文件、不监听模块根，而 loader 按同一 specifier 重新 `import` 会命中 Node 的 ESM 缓存。改 `src/client/*` 则只需重建 bundle 并刷新页面。
 
 **日志方式**：重启后日志出现：
 

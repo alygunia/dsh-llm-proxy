@@ -15,7 +15,6 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
   FieldWrite, ProxyModelRow, ProxyModelScope, ProxyModelSnapshot, TestResult,
@@ -453,33 +452,23 @@ function CardBody(props: Required<ProxyModelCardInjected>): ReactNode {
 }
 
 /**
- * The 模型代理 page body: a header naming the plugin over a line describing
- * what its settings govern, disclosing the configurable items in place. It
- * opens expanded because the Plugins page already spent one click on the tab.
- * Renders nothing (returns null) until the slot outlet supplies the inject
- * face.
+ * The 模型代理 page body: the configurable items (proxy endpoint, 走代理的模型,
+ * retry policy) over the scope the Plugins page bound. The page draws the
+ * title, icon, crumb, and badges itself but supplies a `plugins.item` view NO
+ * surface of its own (its `<section>` is transparent and unpadded), so the page
+ * view still carries the card frame the form sits in. `view` decides between the
+ * one-liner and that form.
+ * Renders nothing (returns null) until the slot outlet supplies the inject face.
  */
 export function ProxyModelCard(props: ProxyModelCardProps): ReactNode {
-  const { scope, useSnapshot, t } = props
-  const [open, setOpen] = useState(true)
+  const { scope, useSnapshot, t, view } = props
   if (scope === undefined || useSnapshot === undefined || t === undefined) return null
+  // `summary`: the Official-group card's one-liner and the detail page's
+  // description line. `page`: the opened card's form, nothing else.
+  if (view === 'summary') return <>{t('description')}</>
   return (
-    <li className={styles.card}>
-      <button
-        type="button"
-        className={styles.header}
-        aria-expanded={open}
-        aria-label={`${t(open ? 'collapse' : 'expand')}: ${t('title')}`}
-        data-testid="proxy-model-card-header"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className={styles.headText}>
-          <span className={styles.name}>{t('title')}</span>
-          <span className={styles.description}>{t('description')}</span>
-        </span>
-        <IconChevronDownOutline14 className={styles.chevron + (open ? ` ${styles.chevronOpen}` : '')} />
-      </button>
-      {open && <CardBody scope={scope} useSnapshot={useSnapshot} t={t} />}
-    </li>
+    <div className={styles.card}>
+      <CardBody scope={scope} useSnapshot={useSnapshot} t={t} />
+    </div>
   )
 }

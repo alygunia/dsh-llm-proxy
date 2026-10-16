@@ -1,82 +1,17 @@
-/* 模型代理 plugin card — header naming the plugin, disclosing the items in place. */
+/* 模型代理 plugin page — the form the Plugins page discloses in place. */
 
+/* The page's surface. The Plugins page draws the title, icon, crumb, and badges
+   for a `plugins.item` view but provides no chrome of its own (its <section> is
+   transparent and unpadded), so the page view owns this frame. */
 .card {
-  list-style: none;
   border: 1px solid var(--dsw-alias-border-l2, #d0d7de);
   border-radius: 12px;
   background: var(--dsw-alias-bg-layer-3, #ffffff);
-  transition: border-color .16s, background .16s;
 }
 
-.card:hover {
-  border-color: var(--dsw-alias-label-dimmed, #8b949e);
-}
-
-/* An open card reads as the one being worked on, not merely taller. */
-.cardOpen {
-  background: var(--dsw-alias-bg-layer-2, #f6f8fa);
-  border-color: var(--dsw-alias-label-dimmed, #8b949e);
-}
-
-.header {
-  width: 100%;
-  appearance: none;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 12px;
-}
-
-.header:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary, #4f8cff);
-  outline-offset: -2px;
-}
-
-/* Name over description: the description is what tells two plugins apart, so
-   it gets its own line rather than trailing the name. */
-.headText {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.name {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--dsw-alias-label-primary, #1f2329);
-}
-
-.description {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--dsw-alias-label-tertiary, #6b7280);
-}
-
-.chevron {
-  flex: none;
-  color: var(--dsw-alias-label-tertiary, #6b7280);
-  transition: transform .16s;
-}
-
-.chevronOpen {
-  transform: rotate(180deg);
-}
-
-/* The disclosed controls: fields + save/reset footer. */
+/* The disclosed controls: fields + save/reset footer, inset in the card. */
 .body {
-  border-top: 1px solid var(--dsw-alias-border-l2, #d0d7de);
-  margin: 0 16px;
-  padding: 14px 0 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;

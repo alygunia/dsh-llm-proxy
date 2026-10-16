@@ -12,6 +12,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Config } from '../lib/index.js'
+import { __resetCatalogForTest, __setCatalogForTest } from '../lib/catalog.js'
 import { listModels, makeBridgeHandlers, makeBridgeRoutes, SETTINGS_BRIDGE_PREFIX } from '../lib/settings.js'
 import {
   chatCompletionsURL, DEFAULT_TEST_TIMEOUT_MS, findTestTarget, runConnectionTest,
@@ -339,4 +340,75 @@ test('bridge routes expose the /test endpoint after /models', async () => {
 
 test('DEFAULT_TEST_TIMEOUT_MS is exported for documentation parity', () => {
   assert.equal(DEFAULT_TEST_TIMEOUT_MS, 20000)
+})
+
+test('findTestTarget resolves a provider that declares models but leaves baseURL to the catalog', () => {
+  // Reported from a live profile: `zai-coding-cn` names its models and leaves
+  // `baseURL` (and each model's `baseUrl`) to the installed pi-ai catalog. The
+  // card listed those models while 「测试连接」 answered unknown-model.
+  __setCatalogForTest((providerId) => (providerId === 'zai-coding-cn'
+    ? [{ id: 'glm-4.5-air', baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4' }]
+    : []))
+  try {
+    const seam = makeSeam({ providers: { 'zai-coding-cn': { apiKeyEnv: 'ZAI_KEY', models: [{ id: 'glm-4.5-air' }] } } })
+    const target = findTestTarget(seam, 'zai-coding-cn/glm-4.5-air', { ZAI_KEY: 'z-key' })
+    assert.equal(target.error, undefined)
+    assert.equal(target.baseURL, 'https://open.bigmodel.cn/api/coding/paas/v4')
+    assert.equal(target.apiKey, 'z-key')
+  } finally {
+    __resetCatalogForTest()
+  }
+})
+
+test('runConnectionTest forwards the provider profile headers', async () => {
+  // The adapter merges the profile's own headers; the probe must too, or a
+  // route that needs a session/tenant header fails with the provider's own 400
+  // (opencode answers `MissingSessionID`) while the adapter serves it fine.
+  let request
+  const outcome = await runConnectionTest(
+    makeSeam({
+      providers: {
+        'opencode-go': {
+          apiKeyEnv: 'OPENCODE_GO_API_KEY',
+          baseURL: 'https://opencode.ai/zen/go',
+          headers: { 'x-opencode-session': 'sess-1' },
+          models: [{ id: 'deepseek-v4.1-flash' }],
+        },
+      },
+    }),
+    'opencode-go/deepseek-v4.1-flash',
+    {
+      fetchImpl: async (url, init) => { request = { url, init }; return { status: 200, ok: true } },
+      env: { OPENCODE_GO_API_KEY: 'sk-test' },
+    },
+  )
+  assert.equal(outcome.ok, true)
+  assert.equal(request.init.headers['x-opencode-session'], 'sess-1')
+  assert.equal(request.init.headers['content-type'], 'application/json')
+  assert.equal(request.init.headers.authorization, 'Bearer sk-test')
+})
+
+test('runConnectionTest authenticates an anthropic-messages route with x-api-key', async () => {
+  let request
+  const outcome = await runConnectionTest(
+    makeSeam({
+      providers: {
+        'claude-proxy': {
+          apiKeyEnv: 'ANTHROPIC_KEY',
+          api: 'anthropic-messages',
+          baseURL: 'https://api.anthropic.com/v1',
+          models: [{ id: 'claude-x' }],
+        },
+      },
+    }),
+    'claude-proxy/claude-x',
+    {
+      fetchImpl: async (url, init) => { request = { url, init }; return { status: 200, ok: true } },
+      env: { ANTHROPIC_KEY: 'ak-test' },
+    },
+  )
+  assert.equal(outcome.ok, true)
+  assert.equal(request.init.headers['x-api-key'], 'ak-test')
+  assert.equal(request.init.headers['anthropic-version'], '2023-06-01')
+  assert.equal(request.init.headers.authorization, undefined, 'Anthropic Messages must not carry a bearer token')
 })

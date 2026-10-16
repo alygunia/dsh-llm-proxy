@@ -38,9 +38,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /**
      * One configurable plugin page (list slot, root scope), declared at runtime
      * by @deepseek-ai/dsh-client-ui-plugin-manager. Declared here so this
-     * package keeps compiling without that package's typings installed.
+     * package keeps compiling without that package's typings installed, with
+     * the owner share the page passes: `summary` for the Official-group card's
+     * one-liner, `page` for the opened card's form.
      */
-    'plugins.item': { kind: 'list', scope: 'root' }
+    'plugins.item': { kind: 'list', scope: 'root', owner: { readonly view: 'summary' | 'page' } }
   }
 }
 
