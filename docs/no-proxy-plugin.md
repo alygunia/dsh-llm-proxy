@@ -28,20 +28,27 @@ pi-ai 的 provider 实现使用 `globalThis.fetch`（Node.js 原生 fetch / undi
 
 #### 1. 创建代理补丁脚本
 
+> **关键**：`require('undici')` 会失败，因为补丁文件所在目录的 `node_modules` 中没有 `undici`。
+> 必须用**绝对路径**指向 DSH 运行时中的 undici。
+
 ```bash
-cat > ~/.dsh/proxy-patch.cjs << 'EOF'
-const { ProxyAgent, setGlobalDispatcher } = require('undici');
+# 补丁文件可放在任意目录，例如 DSH 插件源码目录
+cat > /mnt/md/liz/src/dsh-ext/dsh-llm-proxy/proxy-patch.cjs << 'EOF'
+const { ProxyAgent, setGlobalDispatcher } = require('/home/liz/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/undici');
 setGlobalDispatcher(new ProxyAgent('http://192.168.205.176:8118'));
 EOF
 ```
 
 > **代理地址**：`http://192.168.205.176:8118`
 > 换代理时修改此地址即可。
+>
+> **undici 路径**：`/home/liz/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/undici`
+> 如果 DSH 安装位置不同，调整此路径。
 
 #### 2. 启动 DSH
 
 ```bash
-NODE_OPTIONS="--require /home/liz/.dsh/proxy-patch.cjs" \
+NODE_OPTIONS="--require /mnt/md/liz/src/dsh-ext/dsh-llm-proxy/proxy-patch.cjs" \
   node ~/.npm-global/bin/dsh web
 ```
 
@@ -49,8 +56,9 @@ NODE_OPTIONS="--require /home/liz/.dsh/proxy-patch.cjs" \
 
 ```bash
 # 测试 fetch 是否走代理
-NODE_OPTIONS="--require /home/liz/.dsh/proxy-patch.cjs" \
+NODE_OPTIONS="--require /mnt/md/liz/src/dsh-ext/dsh-llm-proxy/proxy-patch.cjs" \
   node -e "fetch('https://opencode.ai/zen/go/v1/models').then(r => console.log('HTTP', r.status))"
+# 预期输出：HTTP 200
 ```
 
 预期输出：`HTTP 200`
