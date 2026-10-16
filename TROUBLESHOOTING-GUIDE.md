@@ -202,6 +202,7 @@ DSH 里另一个大模型（如有工具权限，可执行命令、读文件）*
 | **已勾选走代理，但测试连接显示「直连」** | 该模型主机同时被另一条未勾选的 provider 路由占用（两条路由解析到同一 host），旧版按 provider 行分桶会把该主机同时写进代理与绕过列表，而官方匹配器里绕过优先；或环境变量 `no_proxy` 里本来就有该主机（插件只合并、不覆盖） | 重启后看日志行的 `proxiedHosts=[…]` 与 `directHosts=[…]` 是否同时含该主机；`$env:no_proxy`（Windows）/ `echo $no_proxy` | 升级到 v1.5.1（已改为按主机划分：`direct = 全部主机 − proxied`）；若来自环境变量，把它从环境变量里去掉 |
 | 插件初始化两次 / 日志出现 `duplicate exact route "/api/dsh-llm-proxy/settings/…"` | v1.5.0 的 bundle patch 里 `insert` 块重复，profile 出现两条同名 `llm-proxy` 行 | 插件页或 `listPlugins` 是否列出两条 llm-proxy | 升级到 v1.5.1（v1.4.0 / v1.5.1 均正常） |
 | 本地目录安装后条目 `failed to import`（无错误详情） | `link:` 安装不会给被链接目录装依赖 | 在插件目录里直接 `import('./lib/index.js')` 看真实报错 | 进插件目录跑一次 `npm install`，再重启 |
+| git 来源安装（`github:` / `git+ssh:`）报 `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED` | v1.5.1 及更早把构建挂在 `prepare` 上；pnpm 会阻止 git 来源依赖执行 build 脚本 | 报错信息里 pnpm 已给出需要放行的**精确键** | 升级到 **v1.5.2**（构建已移到 `prepublishOnly`，不再需要授权）；若必须留在 1.5.1，把那个键写进 `~/.dsh/profiles/<profile>/pnpm-workspace.yaml`：<br>`allowBuilds:`<br>`  "…@git+ssh://…#<40 位 SHA>": true`<br>键必须与报错原样一致（换提交就换键），值是 `true` —— DSH 读的是 **YAML 映射**；若 pnpm 仍报同一错，再按它提示的 `onlyBuiltDependencies` **列表**形式加一份 |
 | 对话超时（境外模型） | 该模型没勾选走代理，直连不通 | 测试连接看是否超时 | 勾选该模型并保存 |
 | 间歇性超时 | undici 代理连接池 keep-alive 复用死连接 | 观察是否偶发挂起后自动重试成功 | 升级到 v1.1.0（已修复）；仍有问题再反馈 |
 | 只部分模型走代理 | 部分 key 没勾或拼错 | 逐个核对设置卡列表 | 勾齐所有需要走代理的模型 |

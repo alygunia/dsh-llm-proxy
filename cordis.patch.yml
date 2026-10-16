@@ -1,4 +1,4 @@
-# @superfish058/dsh-llm-proxy v1.5.1 — bundle patch: inserts the LLM proxy-routing plugin row (deployment-global).
+# @superfish058/dsh-llm-proxy v1.5.2 — bundle patch: inserts the LLM proxy-routing plugin row (deployment-global).
 #
 # v1.0.0 redesign (model-level intent):
 #   proxyHost      proxy hostname/IP (does not have to be this machine; default 127.0.0.1)

@@ -46,23 +46,26 @@ DSH 官方从 0.1.3 起自带出站代理包（`@deepseek-ai/dsh-http-proxy`，n
 ## 安装
 
 ```sh
-# 推荐：npm 包（最新版，预构建 lib，秒装）
+# 推荐：npm 包（预构建 lib，秒装）
 dsh plugin --profile web add @superfish058/dsh-llm-proxy
 
-# 本地源码联调（改源码后需 npm run build 重建）
+# 直接从 GitHub 装
+dsh plugin --profile web add github:<owner>/dsh-llm-proxy
+
+# 本地源码联调
 dsh plugin --profile web add C:/path/to/dsh-llm-proxy
 ```
 
-若提示 build 授权，把 `@superfish058/dsh-llm-proxy` 加进 profile 的 `pnpm-workspace.yaml` → `onlyBuiltDependencies`。装完重启 `dsh web`（托盘退出 → 启动）。
+装完重启 `dsh web`（托盘退出 → 启动）。四种装法的注意点：
 
-> **本地目录 / `link:` 安装的额外一步（重要）**：DSH 对本地目录用 `link:`，pnpm 只建符号链接、**不会**给被链接的目录装依赖。此时插件条目会报 `failed to import`，而这句话本身不含错误详情（真实原因是 `Cannot find package '@deepseek-ai/schemastery' imported from <插件目录>/lib/index.js`）。解决办法是在**插件目录里自己装一次依赖**：
->
-> ```sh
-> cd C:/path/to/dsh-llm-proxy
-> npm install          # 或 pnpm install
-> ```
->
-> 从 npm 安装没有这个问题（依赖会正常落进 profile）。
+| 装法 | 注意点 |
+|---|---|
+| npm 包 | 无额外步骤。发布时由 `prepublishOnly` 重建 bundle。 |
+| `github:` / git | v1.5.2 起无额外步骤（预构建的 `lib/` 随仓库提交，安装不触发任何脚本）；**v1.5.1 及更早**会报 `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`，处理方式见[排查指南](TROUBLESHOOTING-GUIDE.md) |
+| 本地目录 | DSH 用 `link:`，**不会**给该目录装依赖 —— 装完须在插件目录里跑一次 `npm install`，否则条目报 `failed to import`（这句提示不含真实原因） |
+| 离线 tarball | 开发机先 `npm run build && npm pack`（`prepublishOnly` 只在 publish 时触发，`pack` 前得手动构建），再把 `.tgz` 拷到目标机安装 |
+
+> 改 `src/client/*` 后请显式 `npm run build`（或 `npm run build:watch`）——v1.5.2 起 `npm install` 不再顺带构建。
 
 ## 配置
 

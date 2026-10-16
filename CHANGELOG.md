@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.5.2 (2026-10-16)
+
+**让 `github:` / `git+ssh:` 安装不再需要 build 授权。** 本包的构建脚本原先挂在 `prepare` 上，而 pnpm 对 git 来源的依赖会阻止 `prepare` 执行，除非把 pnpm 打印的那条**带提交 SHA 的精确键**写进 profile 的 `pnpm-workspace.yaml`：
+
+```
+ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED  The git-hosted package "@superfish058/dsh-llm-proxy@1.5.1"
+needs to execute build scripts but is not in the "onlyBuiltDependencies" allowlist.
+```
+
+该键形如 `"@superfish058/dsh-llm-proxy@git+ssh://git@github.com/<owner>/dsh-llm-proxy.git#<40 位 SHA>"`，**每换一个提交就换一个键**；而构建又需要 tsdown + lightningcss 原生二进制 + 全套 devDependencies，对只想装个插件的人来说代价不成比例。由于 `lib/`（含预构建的 `lib/client.js`）本来就随仓库提交，git 安装根本不需要现场构建。
+
+- 构建脚本从 `prepare` 改为 **`prepublishOnly`**：`npm publish` 仍会重新构建 bundle，而 git / tarball 安装不再触发任何脚本，也就不再需要 `allowBuilds` 授权。
+- 影响与注意：**开发者克隆后需显式 `npm run build`**（原先 `npm install` 会顺带构建）；打离线 tarball 前也要先 `npm run build && npm pack`（`prepublishOnly` 只在 publish 时触发）。CI 本来就是 `npm ci → npm run build → npm test`，不受影响。
+- **构建产物可复现**：`tsdown.config.ts` 里 CSS Module 的类名字典原样沿用 lightningcss 的枚举顺序，而该顺序在两次运行之间会变，于是每次重建都重写那 21 行映射（键值相同、只是顺序不同），`npm publish` 产出的 bundle 与仓库里提交的字节不一致。现改为按键名排序后输出；实测连续两次 `npm run build` 的 `lib/client.js` SHA256 完全相同。客户端行为不变（新旧 bundle 仅差行序与行尾逗号）。
+- 未改动任何运行时代码；测试与 v1.5.1 相同（77 例）。
+
 ## v1.5.1 (2026-10-15)
 
 **请从 v1.5.0 升级**：v1.5.0 的 bundle patch 里同一个 `insert` 块被写了两遍，安装后 profile 会出现两条同名 `llm-proxy` 行、插件被挂载两次（第二次注册同样的 `/api/dsh-llm-proxy/settings/*` exact 路由时会被 webserver 以 `duplicate exact route` 拒绝）。v1.4.0 无此问题。

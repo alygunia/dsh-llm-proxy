@@ -92,7 +92,14 @@ const config: UserConfig = {
         minify: true,
       })
       const classMap: Record<string, string> = {}
-      for (const [local, exp] of Object.entries(cssExports ?? {})) classMap[local] = exp.name
+      // lightningcss enumerates its `exports` object in an order that varies
+      // between runs, which made every rebuild rewrite the emitted class map
+      // (same keys and values, different sequence) and left the published
+      // bundle byte-different from the committed one. Sort by local name so
+      // the artifact is reproducible.
+      const classEntries = Object.entries(cssExports ?? {})
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      for (const [local, exp] of classEntries) classMap[local] = exp.name
       return [
         `const css = ${JSON.stringify(code.toString())};`,
         `const tagId = ${JSON.stringify(`${ID}/${basename(fileId)}`)};`,
