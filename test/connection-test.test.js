@@ -101,6 +101,54 @@ test('findTestTarget resolves apiKeyEnv from the DSH credentials file', () => {
   }
 })
 
+test('findTestTarget resolves apiKeyEnv from a flow-style { } refs block', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-llm-proxy-cred-'))
+  try {
+    // The refs map written as a YAML flow-style block (the form some tooling
+    // emits), with a trailing comma on every entry but the last.
+    writeFileSync(join(dir, '.credentials.yaml'),
+      'version: 1\nrefs:\n  {\n    FLOW_KEY: sk-flowkey,\n    FLOW_KEY2: sk-flowkey2\n  }\n')
+    const seam = makeSeam({
+      documentPath: join(dir, 'settings.yaml'),
+      providers: {
+        'b-ai': {
+          apiKeyEnv: 'FLOW_KEY',
+          baseURL: 'https://api.b.ai/v1',
+          models: [{ id: 'deepseek-v4-flash-vision-exp' }],
+        },
+      },
+    })
+    const target = findTestTarget(seam, BAI_KEY, {})
+    assert.equal(target.error, undefined)
+    assert.equal(target.apiKey, 'sk-flowkey')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('findTestTarget resolves a quoted flow-style ref value', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-llm-proxy-cred-'))
+  try {
+    writeFileSync(join(dir, '.credentials.yaml'),
+      'version: 1\nrefs:\n  {\n    QUOTED_KEY: "sk-quoted",\n  }\n')
+    const seam = makeSeam({
+      documentPath: join(dir, 'settings.yaml'),
+      providers: {
+        'b-ai': {
+          apiKeyEnv: 'QUOTED_KEY',
+          baseURL: 'https://api.b.ai/v1',
+          models: [{ id: 'deepseek-v4-flash-vision-exp' }],
+        },
+      },
+    })
+    const target = findTestTarget(seam, BAI_KEY, {})
+    assert.equal(target.error, undefined)
+    assert.equal(target.apiKey, 'sk-quoted')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('findTestTarget resolves apiKeyEnv from the environment', () => {
   const seam = makeSeam({
     providers: {
