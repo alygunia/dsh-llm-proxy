@@ -7,7 +7,7 @@
 # 多 relay 实例：给每个 unit 各调一次，或改 UNIT 变量。
 set -euo pipefail
 
-UNIT="${RELAY_UNIT:-llm-replay-opencode-go}"   # systemd 用户服务名（注意用户单名拼写就是 replay）
+UNIT="${RELAY_UNIT:-llm-relay-opencode-go}"   # systemd 用户服务名
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE="$DIR/proxy-state"
 
