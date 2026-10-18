@@ -5,3 +5,4 @@ restart-dsh-web.ps1
 .DS_Store
 *.tgz
 scripts/install-gh-wizard.sh
+scripts/proxy-state
