@@ -1,0 +1,23 @@
+# llm-replay-opencode-go.service — opencode-go 专用 LLM relay（注意单名拼写就是 replay，与线上一致）
+#
+# 安装（repo 为唯一事实源，symlink 进用户 unit 目录）：
+#   ln -sf "$(git rev-parse --show-toplevel)/scripts/llm-replay-opencode-go.service" ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now llm-replay-opencode-go    # enable=开机自启，线上目前尚未 enable
+# 改完本文件后：systemctl --user daemon-reload && systemctl --user restart llm-replay-opencode-go
+#
+# 走不走代理不在这里开关：见 scripts/proxy-switch.sh（状态文件 scripts/proxy-state + 重启切换）。
+# 这里的 Environment 只提供代理地址本身；状态文件 direct 时 relay 会 re-exec 剥掉它。
+[Unit]
+Description=LLM relay: opencode-go via proxy
+After=network-online.target
+
+[Service]
+Environment=NODE_USE_ENV_PROXY=1
+Environment=HTTPS_PROXY=http://192.168.205.176:8118
+Environment=HTTP_PROXY=http://192.168.205.176:8118
+ExecStart=/usr/bin/env node /mnt/md/liz/src/dsh-ext/dsh-llm-proxy/scripts/llm-relay.cjs --listen 8100 --upstream https://opencode.ai/zen/go
+Restart=always
+
+[Install]
+WantedBy=default.target
