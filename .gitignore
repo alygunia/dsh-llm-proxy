@@ -6,3 +6,4 @@ restart-dsh-web.ps1
 *.tgz
 scripts/install-gh-wizard.sh
 scripts/proxy-state
+llm-server.token
